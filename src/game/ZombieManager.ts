@@ -126,7 +126,7 @@ export class ZombieManager {
     private zombies: Zombie[] = [];
     private spawnTimer: number = 0;
     private spawnInterval: number = 2.5; 
-    private maxZombies: number = 100;
+    private maxZombies: number = 30;
 
     constructor(scene: Scene, player: Player, environment: Environment, shadowGenerator: ShadowGenerator) {
         this.scene = scene;
@@ -142,13 +142,22 @@ export class ZombieManager {
             this.spawnZombie();
             this.spawnTimer = 0;
             // Decrease interval slightly over time to increase difficulty
-            this.spawnInterval = Math.max(0.5, this.spawnInterval * 0.99);
+            this.spawnInterval = Math.max(1.0, this.spawnInterval * 0.99);
         }
 
         // Update zombies
         for (let i = this.zombies.length - 1; i >= 0; i--) {
             const zombie = this.zombies[i];
             zombie.update(dt);
+            
+            // Despawn if too far
+            const dist = Vector3.Distance(zombie.mesh.position, this.player.mesh.position);
+            if (dist > 80) { // Despawn distance
+                zombie.die(); // Dispose mesh
+                this.zombies.splice(i, 1);
+                continue;
+            }
+
             if (zombie.isDead()) {
                 this.zombies.splice(i, 1);
             }
@@ -170,11 +179,13 @@ export class ZombieManager {
             // Raycast down to find ground height and ensure we are not inside a building
             const rayOrigin = new Vector3(x, 50, z);
             const ray = new BABYLON.Ray(rayOrigin, new Vector3(0, -1, 0), 100);
+            const groundMeshes = this.environment.getGroundMeshes();
+            
             const hit = this.scene.pickWithRay(ray, (mesh) => {
-                return mesh === this.environment.ground || this.environment.obstacles.includes(mesh as BABYLON.Mesh);
+                return groundMeshes.includes(mesh as BABYLON.Mesh) || this.environment.obstacles.includes(mesh as BABYLON.Mesh);
             });
 
-            if (hit && hit.hit && hit.pickedMesh === this.environment.ground) {
+            if (hit && hit.hit && groundMeshes.includes(hit.pickedMesh as BABYLON.Mesh)) {
                 spawnPos = hit.pickedPoint!.clone();
                 spawnPos.y += 1; // Offset for zombie height
                 validPosition = true;

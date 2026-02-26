@@ -126,7 +126,9 @@ export class Player {
         // So 0.6m up from center = 1.6m from ground.
         this.cameraRoot.position = new Vector3(0, 0.6, 0); 
 
-        this.camera = new UniversalCamera("TPCamera", new Vector3(0, 0, -6), this.scene);
+        // Move camera to top-right (Right Shoulder view) by default
+        // 1.5 (Right), 0.5 (Up), -4 (Back)
+        this.camera = new UniversalCamera("TPCamera", new Vector3(1.5, 0.5, -4), this.scene);
         this.camera.parent = this.cameraRoot;
         // Remove lockedTarget to prevent drift/fighting with parent rotation
         // this.camera.lockedTarget = this.cameraRoot; 
@@ -136,6 +138,14 @@ export class Player {
         this.camera.inertia = 0;
         
         this.scene.activeCamera = this.camera;
+    }
+
+    public setCameraSide(side: 'left' | 'right') {
+        if (side === 'left') {
+            this.camera.position.x = -1.5;
+        } else {
+            this.camera.position.x = 1.5;
+        }
     }
 
     private createGun() {

@@ -1,5 +1,5 @@
 import { Engine, Scene, Vector3, HemisphericLight, DirectionalLight, ShadowGenerator, Color3, Color4, FreeCamera, Sound } from "babylonjs";
-import { AdvancedDynamicTexture, TextBlock, Rectangle, Control, Ellipse } from "babylonjs-gui";
+import { AdvancedDynamicTexture, TextBlock, Rectangle, Control, Ellipse, Button, StackPanel } from "babylonjs-gui";
 import { Player } from "./Player";
 import { Environment } from "./Environment";
 import { ZombieManager } from "./ZombieManager";
@@ -15,7 +15,9 @@ export class GameApp {
     private scoreLabel: TextBlock;
     private ammoLabel: TextBlock;
     private gameOverLabel: TextBlock;
+    private pauseMenu: Rectangle;
     private isGameOver: boolean = false;
+    private isPaused: boolean = false;
     private score: number = 0;
     public shadowGenerator: ShadowGenerator;
     private resizeHandler: () => void;
@@ -26,6 +28,7 @@ export class GameApp {
         this.ui = AdvancedDynamicTexture.CreateFullscreenUI("UI");
         
         this.setupUI();
+        this.setupPauseMenu();
 
         // Game components
         this.environment = new Environment(this.scene, this.shadowGenerator);
@@ -34,9 +37,11 @@ export class GameApp {
 
         // Game Loop
         this.engine.runRenderLoop(() => {
-            if (!this.isGameOver) {
+            if (!this.isGameOver && !this.isPaused) {
                 this.update();
                 this.scene.render();
+            } else if (this.isPaused) {
+                this.scene.render(); // Still render scene when paused, just don't update logic
             }
         });
 
@@ -44,6 +49,92 @@ export class GameApp {
             this.engine.resize();
         };
         window.addEventListener("resize", this.resizeHandler);
+
+        // Pause input
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" || e.key === "p") {
+                this.togglePause();
+            }
+        });
+    }
+
+    private togglePause() {
+        if (this.isGameOver) return;
+        
+        this.isPaused = !this.isPaused;
+        this.pauseMenu.isVisible = this.isPaused;
+        
+        if (this.isPaused) {
+            document.exitPointerLock();
+        } else {
+            // Resume pointer lock if clicking back into game
+             this.scene.getEngine().getRenderingCanvas()?.requestPointerLock();
+        }
+    }
+
+    private setupPauseMenu() {
+        this.pauseMenu = new Rectangle();
+        this.pauseMenu.width = "400px";
+        this.pauseMenu.height = "300px";
+        this.pauseMenu.background = "rgba(0, 0, 0, 0.8)";
+        this.pauseMenu.cornerRadius = 20;
+        this.pauseMenu.thickness = 0;
+        this.pauseMenu.isVisible = false;
+        this.ui.addControl(this.pauseMenu);
+
+        const panel = new StackPanel();
+        this.pauseMenu.addControl(panel);
+
+        const title = new TextBlock();
+        title.text = "PAUSED";
+        title.color = "white";
+        title.fontSize = 30;
+        title.height = "60px";
+        panel.addControl(title);
+
+        // Camera Toggle
+        const cameraBtn = Button.CreateSimpleButton("cameraBtn", "Camera: Right");
+        cameraBtn.width = "200px";
+        cameraBtn.height = "40px";
+        cameraBtn.color = "white";
+        cameraBtn.background = "#444444";
+        cameraBtn.paddingBottom = "10px";
+        cameraBtn.onPointerUpObservable.add(() => {
+            if (cameraBtn.children[0] instanceof TextBlock) {
+                const text = cameraBtn.children[0] as TextBlock;
+                if (text.text === "Camera: Right") {
+                    text.text = "Camera: Left";
+                    this.player.setCameraSide('left');
+                } else {
+                    text.text = "Camera: Right";
+                    this.player.setCameraSide('right');
+                }
+            }
+        });
+        panel.addControl(cameraBtn);
+
+        // Resume
+        const resumeBtn = Button.CreateSimpleButton("resumeBtn", "Resume");
+        resumeBtn.width = "200px";
+        resumeBtn.height = "40px";
+        resumeBtn.color = "white";
+        resumeBtn.background = "green";
+        resumeBtn.paddingBottom = "10px";
+        resumeBtn.onPointerUpObservable.add(() => {
+            this.togglePause();
+        });
+        panel.addControl(resumeBtn);
+
+        // Exit
+        const exitBtn = Button.CreateSimpleButton("exitBtn", "Exit Game");
+        exitBtn.width = "200px";
+        exitBtn.height = "40px";
+        exitBtn.color = "white";
+        exitBtn.background = "red";
+        exitBtn.onPointerUpObservable.add(() => {
+            window.location.reload(); // Simple exit for now
+        });
+        panel.addControl(exitBtn);
     }
 
     private createScene(): Scene {
@@ -136,6 +227,7 @@ export class GameApp {
         const dt = this.engine.getDeltaTime() / 1000;
 
         this.player.update(dt);
+        this.environment.update(this.player.mesh.position);
         this.zombieManager.update(dt);
 
         // Check collisions between bullets and zombies
@@ -168,18 +260,19 @@ export class GameApp {
             if (hitZombie) {
                 bullet.isDead = true;
                 bullet.dispose();
-                // We don't splice here because Player.updateBullets handles removal based on isDead flag
-                // Actually Player.updateBullets is called BEFORE this update loop in GameApp.update()
-                // So we should remove it manually or mark it dead for next frame.
-                // Let's just splice it here to be safe and immediate.
                 bullets.splice(i, 1);
             } else {
                 // Check environment collision with Ray
                 let hitEnv = false;
                 
                 // Ground
-                const groundPick = ray.intersectsMesh(this.environment.ground);
-                if (groundPick.hit) hitEnv = true;
+                const groundMeshes = this.environment.getGroundMeshes();
+                for (const ground of groundMeshes) {
+                    if (ray.intersectsMesh(ground).hit) {
+                        hitEnv = true;
+                        break;
+                    }
+                }
 
                 // Obstacles
                 if (!hitEnv) {
