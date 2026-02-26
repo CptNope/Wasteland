@@ -148,6 +148,23 @@ export class Player {
         }
     }
 
+    public setVirtualInput(key: string, pressed: boolean) {
+        this.inputMap[key] = pressed;
+    }
+
+    public handleVirtualLook(deltaX: number, deltaY: number) {
+        // Rotate player body (Y axis)
+        this.mesh.rotation.y += deltaX * 0.005;
+
+        // Rotate camera pivot (X axis) - Look up/down
+        const currentX = this.cameraRoot.rotation.x;
+        const newX = currentX + deltaY * 0.005;
+        
+        if (newX > -1.5 && newX < 1.5) {
+            this.cameraRoot.rotation.x = newX;
+        }
+    }
+
     private createGun() {
         // Gun mesh attached to camera root so it pitches with view
         this.gunMesh = MeshBuilder.CreateBox("gun", { width: 0.15, height: 0.15, depth: 0.6 }, this.scene);
