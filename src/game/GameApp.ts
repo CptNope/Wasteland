@@ -37,6 +37,11 @@ export class GameApp {
         this.player = new Player(this.scene, canvas, this.environment, this.shadowGenerator);
         this.zombieManager = new ZombieManager(this.scene, this.player, this.environment, this.shadowGenerator);
 
+        // Mobile Controls (must be after player is created)
+        if (this.isMobile()) {
+            this.mobileControls = new MobileControlsManager(this.ui, this.player, () => this.togglePause());
+        }
+
         // Game Loop
         this.engine.runRenderLoop(() => {
             if (!this.isGameOver && !this.isPaused) {
@@ -224,10 +229,6 @@ export class GameApp {
         this.gameOverLabel.isVisible = false;
         this.ui.addControl(this.gameOverLabel);
 
-        // Mobile Controls
-        if (this.isMobile()) {
-            this.mobileControls = new MobileControlsManager(this.ui, this.player, () => this.togglePause());
-        }
     }
 
     private isMobile(): boolean {
