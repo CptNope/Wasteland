@@ -15,7 +15,13 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+        includeAssets: [
+          'favicon.png',
+          'favicon-16x16.png',
+          'favicon-32x32.png',
+          'apple-touch-icon.png',
+          'icons/icon-master.svg'
+        ],
         manifest: {
           name: 'Wasteland',
           short_name: 'Wasteland',
@@ -24,28 +30,84 @@ export default defineConfig(({mode}) => {
           background_color: '#2a2a2a',
           display: 'standalone',
           orientation: 'landscape',
+          scope: '/Wasteland/',
+          start_url: '/Wasteland/',
           icons: [
             {
-              src: 'icons/icon-192x192.svg',
+              src: 'icons/icon-48x48.png',
+              sizes: '48x48',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-72x72.png',
+              sizes: '72x72',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-96x96.png',
+              sizes: '96x96',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-128x128.png',
+              sizes: '128x128',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-144x144.png',
+              sizes: '144x144',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-152x152.png',
+              sizes: '152x152',
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-192x192.png',
               sizes: '192x192',
-              type: 'image/svg+xml'
+              type: 'image/png'
             },
             {
-              src: 'icons/icon-512x512.svg',
-              sizes: '512x512',
-              type: 'image/svg+xml'
+              src: 'icons/icon-384x384.png',
+              sizes: '384x384',
+              type: 'image/png'
             },
             {
-              src: 'icons/icon-512x512.svg',
+              src: 'icons/icon-512x512.png',
               sizes: '512x512',
-              type: 'image/svg+xml',
-              purpose: 'any maskable'
+              type: 'image/png'
+            },
+            {
+              src: 'icons/icon-maskable-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: 'icons/icon-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             }
           ]
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024 // 10MB
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB
+          runtimeCaching: [
+            {
+              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images',
+                expiration: {
+                  maxEntries: 60,
+                  maxAgeSeconds: 30 * 24 * 60 * 60 // 30 days
+                }
+              }
+            }
+          ]
         }
       })
     ],
