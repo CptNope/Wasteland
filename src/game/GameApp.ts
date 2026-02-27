@@ -3,6 +3,7 @@ import { AdvancedDynamicTexture, TextBlock, Rectangle, Control, Ellipse, Button,
 import { Player } from "./Player";
 import { Environment } from "./Environment";
 import { ZombieManager } from "./ZombieManager";
+import { MobileControlsManager } from "./MobileControlsManager";
 
 export class GameApp {
     private engine: Engine;
@@ -21,6 +22,7 @@ export class GameApp {
     private score: number = 0;
     public shadowGenerator: ShadowGenerator;
     private resizeHandler: () => void;
+    private mobileControls: MobileControlsManager | null = null;
 
     constructor(canvas: HTMLCanvasElement) {
         this.engine = new Engine(canvas, true);
@@ -224,243 +226,12 @@ export class GameApp {
 
         // Mobile Controls
         if (this.isMobile()) {
-            this.setupMobileControls();
+            this.mobileControls = new MobileControlsManager(this.ui, this.player, () => this.togglePause());
         }
     }
 
     private isMobile(): boolean {
         return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    }
-
-    private setupMobileControls() {
-        // Left Stick (Movement)
-        const leftStickContainer = new Ellipse();
-        leftStickContainer.width = "150px";
-        leftStickContainer.height = "150px";
-        leftStickContainer.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-        leftStickContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        leftStickContainer.left = "50px";
-        leftStickContainer.top = "-50px";
-        leftStickContainer.color = "white";
-        leftStickContainer.thickness = 2;
-        leftStickContainer.background = "rgba(0,0,0,0.2)";
-        leftStickContainer.isPointerBlocker = true;
-        this.ui.addControl(leftStickContainer);
-
-        const leftPuck = new Ellipse();
-        leftPuck.width = "50px";
-        leftPuck.height = "50px";
-        leftPuck.color = "white";
-        leftPuck.thickness = 0;
-        leftPuck.background = "white";
-        leftStickContainer.addControl(leftPuck);
-
-        let leftPointerDown = false;
-        let leftPointerId = -1;
-
-        leftStickContainer.onPointerDownObservable.add((coordinates) => {
-            leftPointerDown = true;
-            leftPointerId = coordinates.pointerId;
-            leftPuck.background = "gray";
-        });
-
-        leftStickContainer.onPointerUpObservable.add((coordinates) => {
-            if (coordinates.pointerId === leftPointerId) {
-                leftPointerDown = false;
-                leftPuck.left = 0;
-                leftPuck.top = 0;
-                leftPuck.background = "white";
-                this.player.setVirtualInput("w", false);
-                this.player.setVirtualInput("s", false);
-                this.player.setVirtualInput("a", false);
-                this.player.setVirtualInput("d", false);
-            }
-        });
-
-        leftStickContainer.onPointerMoveObservable.add((coordinates) => {
-            if (leftPointerDown) {
-                // Calculate delta from center
-                const centerX = leftStickContainer.centerX;
-                const centerY = leftStickContainer.centerY;
-                
-                // Coordinates are relative to the control if we use local coordinates, 
-                // but onPointerMove gives global coordinates usually.
-                // Let's use the coordinates relative to the center of the container.
-                // Actually, coordinates.x and y are global.
-                
-                let deltaX = coordinates.x - centerX;
-                let deltaY = coordinates.y - centerY;
-
-                // Clamp to radius
-                const radius = 75; // Half of 150
-                const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                if (dist > radius) {
-                    deltaX = (deltaX / dist) * radius;
-                    deltaY = (deltaY / dist) * radius;
-                }
-
-                leftPuck.left = deltaX + "px";
-                leftPuck.top = deltaY + "px";
-
-                // Map to inputs
-                // Y is inverted (up is negative)
-                this.player.setVirtualInput("w", deltaY < -20);
-                this.player.setVirtualInput("s", deltaY > 20);
-                this.player.setVirtualInput("a", deltaX < -20);
-                this.player.setVirtualInput("d", deltaX > 20);
-            }
-        });
-
-        // Right Stick (Look)
-        const rightStickContainer = new Ellipse();
-        rightStickContainer.width = "150px";
-        rightStickContainer.height = "150px";
-        rightStickContainer.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        rightStickContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        rightStickContainer.left = "-50px";
-        rightStickContainer.top = "-50px";
-        rightStickContainer.color = "white";
-        rightStickContainer.thickness = 2;
-        rightStickContainer.background = "rgba(0,0,0,0.2)";
-        rightStickContainer.isPointerBlocker = true;
-        this.ui.addControl(rightStickContainer);
-
-        const rightPuck = new Ellipse();
-        rightPuck.width = "50px";
-        rightPuck.height = "50px";
-        rightPuck.color = "white";
-        rightPuck.thickness = 0;
-        rightPuck.background = "white";
-        rightStickContainer.addControl(rightPuck);
-
-        let rightPointerDown = false;
-        let rightPointerId = -1;
-
-        rightStickContainer.onPointerDownObservable.add((coordinates) => {
-            rightPointerDown = true;
-            rightPointerId = coordinates.pointerId;
-            rightPuck.background = "gray";
-        });
-
-        rightStickContainer.onPointerUpObservable.add((coordinates) => {
-            if (coordinates.pointerId === rightPointerId) {
-                rightPointerDown = false;
-                rightPuck.left = 0;
-                rightPuck.top = 0;
-                rightPuck.background = "white";
-            }
-        });
-
-        rightStickContainer.onPointerMoveObservable.add((coordinates) => {
-            if (rightPointerDown) {
-                const centerX = rightStickContainer.centerX;
-                const centerY = rightStickContainer.centerY;
-                
-                let deltaX = coordinates.x - centerX;
-                let deltaY = coordinates.y - centerY;
-
-                const radius = 75;
-                const dist = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-                if (dist > radius) {
-                    deltaX = (deltaX / dist) * radius;
-                    deltaY = (deltaY / dist) * radius;
-                }
-
-                rightPuck.left = deltaX + "px";
-                rightPuck.top = deltaY + "px";
-
-                // Look sensitivity
-                this.player.handleVirtualLook(deltaX * 0.1, deltaY * 0.1);
-            }
-        });
-
-        // Action Buttons
-        const shootBtn = Button.CreateSimpleButton("shootBtn", "SHOOT");
-        shootBtn.width = "80px";
-        shootBtn.height = "80px";
-        shootBtn.cornerRadius = 40;
-        shootBtn.color = "white";
-        shootBtn.background = "rgba(255, 0, 0, 0.5)";
-        shootBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        shootBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        shootBtn.left = "-220px";
-        shootBtn.top = "-80px";
-        shootBtn.onPointerDownObservable.add(() => {
-            this.player.setVirtualInput("mouseLeft", true);
-        });
-        shootBtn.onPointerUpObservable.add(() => {
-            this.player.setVirtualInput("mouseLeft", false);
-        });
-        this.ui.addControl(shootBtn);
-
-        const jumpBtn = Button.CreateSimpleButton("jumpBtn", "JUMP");
-        jumpBtn.width = "80px";
-        jumpBtn.height = "80px";
-        jumpBtn.cornerRadius = 40;
-        jumpBtn.color = "white";
-        jumpBtn.background = "rgba(0, 255, 0, 0.5)";
-        jumpBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        jumpBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        jumpBtn.left = "-220px";
-        jumpBtn.top = "-180px";
-        jumpBtn.onPointerDownObservable.add(() => {
-            this.player.setVirtualInput(" ", true); // Space
-        });
-        jumpBtn.onPointerUpObservable.add(() => {
-            this.player.setVirtualInput(" ", false);
-        });
-        this.ui.addControl(jumpBtn);
-
-        const reloadBtn = Button.CreateSimpleButton("reloadBtn", "R");
-        reloadBtn.width = "60px";
-        reloadBtn.height = "60px";
-        reloadBtn.cornerRadius = 30;
-        reloadBtn.color = "white";
-        reloadBtn.background = "rgba(0, 0, 255, 0.5)";
-        reloadBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        reloadBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        reloadBtn.left = "-320px";
-        reloadBtn.top = "-80px";
-        reloadBtn.onPointerClickObservable.add(() => {
-            this.player.setVirtualInput("r", true);
-            setTimeout(() => this.player.setVirtualInput("r", false), 100);
-        });
-        this.ui.addControl(reloadBtn);
-
-        // Sprint Button (Hold)
-        const sprintBtn = Button.CreateSimpleButton("sprintBtn", "RUN");
-        sprintBtn.width = "80px";
-        sprintBtn.height = "80px";
-        sprintBtn.cornerRadius = 40;
-        sprintBtn.color = "white";
-        sprintBtn.background = "rgba(255, 165, 0, 0.5)"; // Orange
-        sprintBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-        sprintBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-        sprintBtn.left = "220px";
-        sprintBtn.top = "-80px";
-        sprintBtn.onPointerDownObservable.add(() => {
-            this.player.setVirtualInput("shift", true);
-        });
-        sprintBtn.onPointerUpObservable.add(() => {
-            this.player.setVirtualInput("shift", false);
-        });
-        this.ui.addControl(sprintBtn);
-
-        // Pause Button
-        const pauseBtn = Button.CreateSimpleButton("pauseBtn", "||");
-        pauseBtn.width = "50px";
-        pauseBtn.height = "50px";
-        pauseBtn.cornerRadius = 10;
-        pauseBtn.color = "white";
-        pauseBtn.background = "rgba(0, 0, 0, 0.5)";
-        pauseBtn.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        pauseBtn.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-        pauseBtn.left = "-20px";
-        pauseBtn.top = "20px";
-        pauseBtn.onPointerClickObservable.add(() => {
-            this.togglePause();
-        });
-        this.ui.addControl(pauseBtn);
     }
 
     private update() {
