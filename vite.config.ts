@@ -9,7 +9,7 @@ export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
     // If deploying to https://<USERNAME>.github.io/<REPO>/, set base to '/<REPO>/'
-    // base: '/repo-name/',
+    base: '/Wasteland/',
     plugins: [
       react(), 
       tailwindcss(),
@@ -17,8 +17,8 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'Zombie Survival',
-          short_name: 'Zombies',
+          name: 'Wasteland',
+          short_name: 'Wasteland',
           description: 'A 3D zombie survival game',
           theme_color: '#2a2a2a',
           background_color: '#2a2a2a',
